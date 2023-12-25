@@ -1,0 +1,350 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" href="#">
+    <title>Fragment_shader_demo</title>
+    <style>
+      body { margin: 0; } canvas {width: 100%;
+      height: 100% }
+    </style>
+  </head>
+  <body>
+    <div id="canvas"></div>
+<!--    <script src="js/three.js"></script> -->
+    <script src="js/three.min.js"></script>
+    <script src="js/SourceLoader.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <script src="js/KeyboardState.js"></script> <!-- By Jerome Etienne: http://jetienne.com/ -->
+    <script src="js/OBJLoader.js"></script>   
+
+<script id="floorVertShader" type="x-shader/x-vertex">
+uniform vec2 uvScale;
+varying vec2 vUv;
+varying vec3 vcsNormal;
+varying vec3 ocsPosition;
+varying vec3 vcsPosition;
+void main()
+{       
+  vUv = uv;
+  ocsPosition = position;
+  vec4 vcsP = modelViewMatrix * vec4(ocsPosition,1.0);
+  vcsPosition = vcsP.xyz;
+  gl_Position = projectionMatrix * vcsP;   // pass on point in CCS
+  vcsNormal = normalMatrix * normal;       // normalMatrix is the transpose-inv of the rotation matrix
+}
+</script>
+
+<script id="myVertShader" type="x-shader/x-vertex">
+uniform vec2 uvScale;
+varying vec2 vUv;
+varying vec3 vcsNormal;
+varying vec3 ocsPosition;
+varying vec3 vcsPosition;
+void main()
+{       
+  vUv = uvScale * uv;
+  ocsPosition = position;
+  vec4 vcsP = modelViewMatrix * vec4(ocsPosition,1.0);
+  vcsPosition = vcsP.xyz;
+  gl_Position = projectionMatrix * vcsP;   // pass on point in CCS
+  vcsNormal = normalMatrix * normal;       // normalMatrix is the transpose-inv of the rotation matrix
+}
+</script>
+
+<script id="skyBoxVertShader" type="x-shader/x-vertex">
+varying vec2 vUv;
+void main()
+{       
+  vec4 vcsP = modelViewMatrix * vec4(position,1.0);
+  gl_Position = projectionMatrix * vcsP;   // pass on point in CCS
+  vUv = uv;
+}
+</script>
+
+<script id="holeyFragShader" type="x-shader/x-fragment">
+uniform vec3 vcsLightPosition;
+uniform vec3 myColor;
+varying vec3 vcsNormal;
+varying vec3 vcsPosition;
+varying vec3 ocsPosition;
+
+void main( void ) {
+  vec3 L = normalize(vcsLightPosition);
+  vec3 N = normalize(vcsNormal);
+  float i = max(-dot(L,N),0.0);
+  
+  //controls how far apart the holes are
+  float spacing = 0.4;
+  vec3 coord = ocsPosition/spacing;
+
+  float dx = coord.x - floor(coord.x + 0.5);
+  float dy = coord.y - floor(coord.y + 0.5);
+  float dz = coord.z - floor(coord.z + 0.5);
+  float r2 = dx * dx + dy * dy + dz * dz;
+
+  // hole size
+  float holeThreshold = 0.2;
+  
+  // radial distance is too small -> discard
+  if (r2 < holeThreshold) {discard;}
+
+  vec3 color = vec3(0,1,1);
+  gl_FragColor = vec4(color*i,1.0);
+}
+</script>
+
+<script id="toonVertexShader" type="x-shader/x-vertex">
+varying vec3 vcsNormal;
+varying vec3 vcsPosition;
+void main()
+{       
+  vec4 vcsP = modelViewMatrix * vec4(position,1.0);
+  vcsPosition = vcsP.xyz;
+  gl_Position = projectionMatrix * vcsP;   // pass on point in CCS
+  vcsNormal = normalMatrix * normal;       // normalMatrix is the transpose-inv of the rotation matrix
+}
+</script>
+
+<script id="toonFragmentShader" type="x-shader/x-fragment">
+uniform vec3 vcsLightPosition;
+uniform vec3 toonColor;
+varying vec3 vcsNormal;
+varying vec3 vcsPosition;
+
+void main( void ) {
+  vec3 L = normalize(vcsLightPosition);
+  vec3 N = normalize(vcsNormal);
+  float i = max(-dot(L,N),0.0);
+  i = floor(i / 0.25) * 0.25;
+  gl_FragColor = vec4(toonColor*i,1.0);   // default is yellow
+}
+</script>
+
+
+<script id="envmapFragShader" type="x-shader/x-fragment">
+uniform sampler2D uPosxTexture;
+uniform sampler2D uPosyTexture;
+uniform sampler2D uPoszTexture;
+uniform sampler2D uNegxTexture;
+uniform sampler2D uNegyTexture;
+uniform sampler2D uNegzTexture;
+uniform vec3 myColor;
+uniform mat4 matrixWorld;
+uniform vec3 vcsLightPosition;
+uniform float time;
+varying vec3 vcsNormal;
+varying vec3 ocsPosition;
+varying vec3 vcsPosition;
+
+
+
+/////////////////////////////////////////////
+//////COMMENT: Random Rotation Matrix///////////
+
+float random(float min, float max, float seed) {
+  return fract(sin(seed) * 43758.5453123) * (max - min) + min;
+}
+
+// M: vec3 -> rotx(rotz(roty(vec3, beta), gamma), alpha); all rand angles
+mat3 randomRotationMatrix(float seed) {
+  // roation angle around x, y, z respectively
+    float alpha = random(0.0, 3.14159 * 2.0, seed);
+    float beta = random(0.0, 3.14159 * 2.0, seed);
+    float gamma = random(0.0, 3.14159 * 2.0, seed);
+
+    mat3 rotz = mat3(
+        cos(gamma), -sin(gamma), 0.0,
+        sin(gamma), cos(gamma),0.0,
+        0.0,0.0,1.0
+    );
+
+    mat3 rotx = mat3(
+      1.0, 0.0, 0.0,
+      0.0,cos(alpha), -sin(alpha),
+      0.0, sin(alpha), cos(alpha)
+    );
+
+    mat3 roty = mat3(
+      cos(beta), 0.0, sin(beta),
+      0.0, 1.0, 0.0,
+      -sin(beta), 0.0, cos(beta)
+    );
+
+    return rotx*rotz*roty;
+}
+
+////VOID MAIN ////////////////////////////
+
+void main( void ) {
+  vec3 I = normalize(vcsPosition);
+  vec3 N = normalize(vcsNormal);
+  vec3 R = reflect(I,N);
+  vec4 Rw = matrixWorld*vec4(R,0.0);
+
+  vec3 color = vec3(0.0); // just init
+
+  // all positions are relative to the initial position
+  // top wall
+  if (Rw.y > abs(Rw.x) &&  Rw.y > abs(Rw.z)){
+    float u = (-Rw.x/Rw.y + 1.0)/2.0;
+    float v = (-Rw.z/Rw.y + 1.0)/2.0;
+
+    color = texture2D(uPosyTexture, vec2(u,v)).xyz; 
+  };
+
+  // bottom wall
+  if (-Rw.y > abs(Rw.x) &&  -Rw.y > abs(Rw.z)){
+    float u = (Rw.x/Rw.y + 1.0)/2.0;
+    float v = (-Rw.z/Rw.y + 1.0)/2.0;
+
+    color = texture2D(uNegyTexture, vec2(u,v)).xyz; 
+  };
+
+  // front wall
+  if (Rw.z > abs(Rw.x) &&  Rw.z > abs(Rw.y)){
+    float u = (-Rw.x/Rw.z + 1.0)/2.0;
+    float v = (Rw.y/Rw.z + 1.0)/2.0;
+
+    color = texture2D(uPoszTexture, vec2(u,v)).xyz; 
+  };
+
+  // back wall
+  if (-Rw.z > abs(Rw.x) &&  -Rw.z > abs(Rw.y)){
+    float u = (-Rw.x/Rw.z + 1.0)/2.0;
+    float v = (-Rw.y/Rw.z + 1.0)/2.0;
+
+    color = texture2D(uNegzTexture, vec2(u,v)).xyz; 
+  };
+
+  // right wall
+  if (Rw.x > abs(Rw.z) &&  Rw.x > abs(Rw.y)){
+    float u = (Rw.z/Rw.x + 1.0)/2.0;
+    float v = (Rw.y/Rw.x + 1.0)/2.0;
+
+    color = texture2D(uPosxTexture, vec2(u,v)).xyz; 
+  };
+
+  // left wall
+  if (-Rw.x > abs(Rw.z) &&  -Rw.x > abs(Rw.y)){
+    float u = (Rw.z/Rw.x + 1.0)/2.0;
+    float v = (-Rw.y/Rw.x + 1.0)/2.0;
+
+    color = texture2D(uNegxTexture, vec2(u,v)).xyz; 
+  };
+  
+  //TODO: random rippleS created
+  //time scaling in [0,1], updated in update() in a5.js
+  float z = -time/3.0;
+  // desmos to create a fourier series that looks alr
+  float time_scaling = (5.0*sin(z) + sin(2.0*z) + 6.0)/12.0;
+
+  //controls how far apart the holes are
+  float spacing = 1.0;
+  mat3 rmat = randomRotationMatrix(0.255);
+  vec3 coord = rmat*ocsPosition/spacing;
+
+  float dx = coord.x - floor(coord.x + 0.5);
+  float dy = coord.y - floor(coord.y + 0.5);
+  float dz = coord.z - floor(coord.z + 0.5);
+  float r2 = dx * dx + dy * dy + dz * dz;
+
+
+  // hole size
+  float holeThreshold = 0.3*time_scaling;
+  //thickness of ripple
+  float thickness = 0.01*(time_scaling+1.0);
+
+  // discard the ones in ripple boundaries + threshold
+  if (r2 < holeThreshold && r2+thickness > holeThreshold) {
+    discard;
+  }
+
+  gl_FragColor = vec4(color,1.0); 
+}
+</script>
+
+<script id="floorFragShader" type="x-shader/x-fragment">
+uniform vec3 vcsLightPosition;
+uniform vec3 myColor;
+varying vec3 vcsPosition;
+varying vec3 ocsPosition;
+uniform sampler2D normalMap;
+uniform sampler2D textureMap;
+varying vec2 vUv;
+
+void main( void ) {
+  vec3 normalTex = texture2D(normalMap, vUv).xyz;
+  normalTex = normalTex *2.0 - 1.0;
+  vec3 N = vec3(normalTex.x,normalTex.z,-normalTex.y);
+  vec3 L = vcsLightPosition - vcsPosition;
+  float diffuse = dot(normalize(N), normalize(L));
+  //TODO: use the below line to make it look nicer
+  //diffuse = max(diffuse, 0.6);
+
+  vec3 color = texture2D(textureMap, vUv).xyz;
+  gl_FragColor = vec4(color*diffuse,1.0);
+}
+</script>
+
+
+<script id="pnoiseFragShader" type="x-shader/x-fragment">
+float screenWidth = 2.0;
+float PI = 3.1416;
+
+// perlin noise code from: 
+//   https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+
+float rand(vec2 c){
+	return fract(sin(dot(c.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+float noise(vec2 p, float freq ){
+	float unit = screenWidth/freq;
+	vec2 ij = floor(p/unit);
+	vec2 xy = mod(p,unit)/unit;
+	//xy = 3.*xy*xy-2.*xy*xy*xy;
+	xy = .5*(1.-cos(PI*xy));
+	float a = rand((ij+vec2(0.,0.)));
+	float b = rand((ij+vec2(1.,0.)));
+	float c = rand((ij+vec2(0.,1.)));
+	float d = rand((ij+vec2(1.,1.)));
+	float x1 = mix(a, b, xy.x);
+	float x2 = mix(c, d, xy.x);
+	return mix(x1, x2, xy.y);
+}
+
+float pNoise(vec2 p, int res){
+	float persistance = .5;
+	float n = 0.;
+	float normK = 0.;
+	float f = 4.;
+	float amp = 1.;
+	int iCount = 0;
+	for (int i = 0; i<50; i++){
+		n+=amp*noise(p, f);
+		f*=2.;
+		normK+=amp;
+		amp*=persistance;
+		if (iCount == res) break;
+		iCount++;
+	}
+	float nf = n/normK;
+	return nf*nf*nf*nf;
+}
+
+varying vec3 ocsPosition;
+varying vec3 vcsPosition;
+void main( void ) {
+  int levels = 5;
+  float i=pNoise(ocsPosition.xy,levels);
+  //TODO: it does not change/move when we move the camera/VCS
+  float j=floor(i+0.9);
+  gl_FragColor = vec4(j,j,0.3,1.0);
+  //TODO: the structures becomes more noisy, it could be layering the noise on top of each other
+}
+</script>
+
+<script src="fragment_shader.js"></script>
+</body>
+</html>
+

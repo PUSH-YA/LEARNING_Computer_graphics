@@ -1,0 +1,17 @@
+External resources used:
+dimensions and sizes section ->  https://www.dimensions.com/element/lined-seahorse-hippocampus-erectus
+movement -> https://www.hindawi.com/journals/abb/2021/2807236/
+            https://www.youtube.com/watch?v=IuFsHUG53jY [1:15 - 1:20]
+general facts such as skin, movement, social -> https://www.pbs.org/wnet/nature/blog/seahorse-fact-sheet/
+dorsal fin -> http://users.wfu.edu/rossma/DorsalFin.pdf
+
+
+Implemented features and keybindings:  
+R to reverse the direction of seahorse travelling directions 
+J to start the jump animation in the direction of th circle they were going in
+The corals are pulsating to mimick the coral movement
+The seahorse moves by bending its neck and tail while its dorsal fin flaps at a relatively faster relatively
+The scene includes transluscent water, rocks / shells and arch in the back
+Seafloor bed added to create ocean bed texture so computer does not have to process 100s of geometries being computationally efficient
+
+

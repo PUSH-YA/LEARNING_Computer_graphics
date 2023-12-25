@@ -1,0 +1,82 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>3D animation</title>
+    <link rel="shortcut icon" href="#">
+    <style>
+      body { margin: 0; } canvas {width: 100%;
+      height: 100% }
+    </style>
+  </head>
+  <body>
+    <div id="canvas"></div>
+    <script src="js-old/three.min-r108.js"></script>
+    <script src="js-old/OBJLoader.js"></script>
+    <script src="js-old/SourceLoader.js"></script>
+    <script src="js-old/OrbitControls.js"></script>
+    <script src="js-old/KeyboardState.js"></script> <!-- By Jerome Etienne: http://jetienne.com/ -->
+
+<script id="customVertexShader" type="x-shader/x-vertex">
+varying vec3 varyingNormal;
+void main()
+{
+        varyingNormal = normal;
+	vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+	gl_Position = projectionMatrix * mvPosition;
+}
+</script>
+
+<script id="customFragmentShader" type="x-shader/x-fragment">
+uniform sampler2D floorTexture;
+varying vec3 varyingNormal;
+void main( void ) {
+
+    // Set final rendered color according to the surface normal
+  vec3 N = normalize(varyingNormal);
+// vec3 N = vec3(1.0,0.0,0.0);
+  gl_FragColor = vec4(N.x,N.y,N.z, 1.0);
+}
+</script>
+
+<script id="customTree1FragmentShader" type="x-shader/x-fragment">
+  uniform sampler2D floorTexture;
+  varying vec3 varyingNormal;
+  void main( void ) {
+  
+      // Set final rendered color according to the surface normal
+    vec3 N = normalize(varyingNormal);
+  // vec3 N = vec3(1.0,0.0,0.0);
+    gl_FragColor = vec4(N.x*0.8,N.y*0.3,N.z*0.8, 1.0);
+  }
+  </script>
+
+  <script id="customTree2FragmentShader" type="x-shader/x-fragment">
+    uniform sampler2D floorTexture;
+    varying vec3 varyingNormal;
+    void main( void ) {
+    
+        // Set final rendered color according to the surface normal
+      vec3 N = normalize(varyingNormal);
+    // vec3 N = vec3(1.0,0.0,0.0);
+      gl_FragColor = vec4(N.x*0.8,N.y*0.3,N.z*0.3, 1.0);
+    }
+    </script>
+
+    <script id="customTree3FragmentShader" type="x-shader/x-fragment">
+      uniform sampler2D floorTexture;
+      varying vec3 varyingNormal;
+      void main( void ) {
+      
+          // Set final rendered color according to the surface normal
+        vec3 N = normalize(varyingNormal);
+      // vec3 N = vec3(1.0,0.0,0.0);
+        gl_FragColor = vec4(N.x*0.3,N.y*0.8,N.z*0.3, 1.0);
+      }
+      </script>
+
+<script src="motion.js"></script>
+<script src="anim.js"></script>
+
+</body>
+</html>
+
