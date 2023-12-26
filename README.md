@@ -1,4 +1,4 @@
-This repository encapsulates my journey of learning how to create video animations using threeJS and the GLSL pipeline.
+This repository encapsulates my journey of learning how to create video animations using threeJS and the GLSL pipeline. Use all the projects with the js folder given outide of the directory!
 
 # 3D animation
 
